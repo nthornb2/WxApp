@@ -1,0 +1,374 @@
+import numpy as np
+import cmath
+import math
+import pyaudio
+import matplotlib.pyplot as plt
+import pyaudio
+from sys import stdout
+import random
+
+#Mapping functions
+def cir_to_cir(z,r,M):
+	a=M[0,0]
+	b=M[0,1]
+	c=M[1,0]
+	d=M[1,1]
+
+	new_ori=-((abs(c*z+d)**2)/(abs(c*z+d)**2-(abs(c)**2)*(r**2)))*(1.0/(c*(c*z+d)))+(a/c)
+	new_rad=r/(abs((abs(c*z+d))**2-((abs(c))**2)*(r**2)))
+
+	return (new_ori,new_rad)
+
+def lin_to_cir(y,M):
+	a=M[0,0]
+	b=M[0,1]
+	c=M[1,0]
+	d=M[1,1]
+
+	new_ori=a/c-1.0/(2*c*(1/(2*a)+c*y*(1j)))
+	new_rad=1.0/(2*abs(c*(1.0/(2*c)+c*y*(1j))))
+
+	return (new_ori,new_rad)
+
+#Drawing functions
+def draw_cir(c,co,ax):
+	z=c[0]
+	r=c[1]
+	ori_x=z.real
+	ori_y=z.imag
+	circle = plt.Circle((ori_x,ori_y), r,color = co, fill = False)
+	ax.add_artist(circle)
+	#x=np.linspace(-1.0*r, 1.0*r, 1000)
+	#y=np.sqrt(r**2-x**2)
+	#plt.plot(x+ori_x,y+ori_y,co)
+	#plt.plot(x+ori_x,-y+ori_y,co)
+	#plt.plot([ori_x],[ori_y],'ro')
+
+
+def draw_k(c,co,ax):
+	z=c[0]
+	r=c[1]
+	ori_x=z.real
+	ori_y=z.imag
+	circle = plt.Circle((ori_x,ori_y), r,color = co, fill = False)
+	ax.add_artist(circle)
+	#x=np.linspace(-1.0*r, 1.0*r, 1000)
+	#y=np.sqrt(r**2-x**2)
+	#plt.plot(x+ori_x,y+ori_y,'--',color=co)
+	#plt.plot(x+ori_x,-y+ori_y,'--',color=co)
+	#plt.plot([ori_x],[ori_y],'ro')
+
+def draw_inv(c,co,ax):
+	z=c[0]
+	r=c[1]
+	ori_x=z.real
+	ori_y=z.imag
+	circle = plt.Circle((ori_x,ori_y), r,color = co, fill = False)
+	ax.add_artist(circle)
+	#x=np.linspace(-1.0*r, 1.0*r, 1000)
+	#y=np.sqrt(r**2-x**2)
+	#plt.plot(x+ori_x,y+ori_y,color=co)
+	#plt.plot(x+ori_x,-y+ori_y,color=co)
+
+#Result Output
+def Count_Gen(all_Inversion_Cir):
+    num_step=len(all_Inversion_Cir)
+    cnt=0
+    for i in range(num_step):
+        cnt+=len(all_Inversion_Cir[i])
+    #print ("Count" , cnt)
+    return (cnt)
+
+
+# In[15]:
+
+#Centers and Radius in Functional Form 
+def Circle_Packing(x,y):
+    rad_list = []
+    e=cmath.e
+    p=cmath.pi
+    M = int(input('M: '))
+    
+    stop_r = 1.0/M   
+    a=np.sqrt((e**((1j)*y)-1)/((e**((1j)*y)-e**((1j)*x))*(e**((1j)*x)-1)))
+    b=-(e**((1j)*x))*a
+    c=((e**((1j)*y)-e**((1j)*x))/(e**((1j)*y)-1))*a
+    d=-c    
+    M=np.array([[a,b],[c,d]])
+    inv_M=np.array([[d,-b],[-c,a]])
+    
+    z_c3=0+.5j
+    z_c4=1.0+.5j
+    r_c3=.5
+    r_c4=.5
+    c3=cir_to_cir(z_c3,r_c3,inv_M)
+    
+    c4=cir_to_cir(z_c4,r_c4,inv_M)
+    
+    c1=((0+0j),1)
+    c2=lin_to_cir(1,inv_M)
+    
+    
+    k2_r=np.sqrt((1/np.cos((y-x)/2))**2-1)
+    k2_x=(np.sin(y)-np.sin(x))/np.sin(y-x)
+    k2_y=(np.cos(x)-np.cos(y))/np.sin(y-x)
+    k2=((k2_x+(1j)*k2_y),k2_r)
+    k3_r=np.sqrt(1/(np.cos((2*p-y)/2)**2)-1)
+    k3_x=1.0
+    k3_y=-k3_r
+    k3=((k3_x+(1j)*k3_y),k3_r)
+
+    k4_r=np.sqrt(1/(np.cos(x/2)**2)-1)
+    k4_x=1.0
+    k4_y=k4_r
+    k4=((k4_x+(1j)*k4_y),k4_r)
+    
+    p=c2[1]+c3[1]+c4[1]
+    a=c2[1]+c3[1]
+    b=c2[1]+c4[1]
+    c=c3[1]+c4[1]
+    
+    k1_r=np.sqrt((p-a)*(p-b)*(p-c)/p)
+    k1_x=(a*(c4[0].real)+b*(c3[0].real)+c*(c2[0].real))/(a+b+c)
+    k1_y=(a*(c4[0].imag)+b*(c3[0].imag)+c*(c2[0].imag))/(a+b+c)
+    k1=((k1_x+(1j)*k1_y),k1_r)
+    all_Inversion_Cir=[]
+
+    def inver(c,k):
+        cz=c[0]
+        cr=c[1]
+        kz=k[0]
+        kr=k[1]
+        inv_ori=(kr**2)*(cz-kz)/(abs(cz-kz)**2-cr**2)+kz
+        inv_rad=abs((kr**2)*cr/(abs(cz-kz)**2-cr**2))
+        
+        return(inv_ori,inv_rad)
+    
+    c1_1=(inver(c1,k1),"1_1")
+    c2_2=(inver(c2,k2),"2_2")
+    c3_3=(inver(c3,k3),"3_3")
+    c4_4=(inver(c4,k4),"4_4")
+    step_1=[c1_1,c2_2,c3_3,c4_4]
+    all_Inversion_Cir.append(step_1)
+    
+    last_step_len=len(step_1)
+    last_step=step_1
+    gen=1
+    
+    def next_cir(new_step,old_inv_cir):
+        cir_id=old_inv_cir[1]
+        old_cir=old_inv_cir[0]
+        if (cir_id[-1]=='1'):     #1
+            new_cir=inver(old_cir,k2)
+            new_r=new_cir[1]
+        
+            if (new_r > stop_r):
+                new_id=cir_id+'2'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k3)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'3'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k4)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'4'
+                new_step.append((new_cir,new_id))
+
+        if (cir_id[-1]=='2'):    #2
+            new_cir=inver(old_cir,k1)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'1'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k3)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'3'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k4)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'4'
+                new_step.append((new_cir,new_id))
+
+        if (cir_id[-1]=='3'):    #3
+            new_cir=inver(old_cir,k2)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'2'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k1)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'1'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k4)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'4'
+                new_step.append((new_cir,new_id))
+
+        if (cir_id[-1]=='4'):     #4
+            new_cir=inver(old_cir,k2)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'2'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k3)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'3'
+                new_step.append((new_cir,new_id))
+
+            new_cir=inver(old_cir,k1)
+            new_r=new_cir[1]
+            if (new_r > stop_r):
+                new_id=cir_id+'1'
+                new_step.append((new_cir,new_id))
+                
+    def next_gen (last_step):
+        n=len(last_step)
+        new_step=[]
+        for i in range (n):
+            old_cir=last_step[i]
+            next_cir(new_step,old_cir)
+        return (new_step)
+    
+    while True:
+        next_step=next_gen(last_step)
+        new_step_len=len(next_step)
+        
+        if (new_step_len==0):
+            break
+        
+        gen+=1
+        all_Inversion_Cir.append(next_step)
+        last_step=next_step
+        centers = sum([[all_Inversion_Cir[i][j][0][0] for j in range(len(all_Inversion_Cir[i]))] for i in range(len(all_Inversion_Cir))],[])
+        radii = sum([[all_Inversion_Cir[i][j][0][1] for j in range(len(all_Inversion_Cir[i]))] for i in range(len(all_Inversion_Cir))],[])
+        
+    return list(zip(centers,radii)),all_Inversion_Cir
+
+
+
+#Plotting Function
+def Plot_Packing(all_Inversion_Cir, theta1,theta2):
+        
+    num_step=len(all_Inversion_Cir)
+    e=cmath.e
+    x= theta1
+    y= theta2
+    a=np.sqrt((e**((1j)*y)-1)/((e**((1j)*y)-e**((1j)*x))*(e**((1j)*x)-1)))
+    b=-(e**((1j)*x))*a
+    c=((e**((1j)*y)-e**((1j)*x))/(e**((1j)*y)-1))*a
+    d=-c
+    
+    inv_M=np.array([[d,-b],[-c,a]])
+    z_c3=0+.5j
+    z_c4=1.0+.5j
+    r_c3=.5
+    r_c4=.5
+    c3=cir_to_cir(z_c3,r_c3,inv_M)
+    c4=cir_to_cir(z_c4,r_c4,inv_M)
+    c1=((0+0j),1)
+    c2=lin_to_cir(1,inv_M)
+    
+    fig, ax = plt.subplots()
+    draw_cir(c1,'b',ax)
+    draw_cir(c3,'b',ax)
+    draw_cir(c4,'b',ax)
+    draw_cir(c2,'b',ax)
+    plt.xlim(-1, 1)
+    plt.ylim(-1, 1)
+    ax.set_xlim(-1.55,1.55)
+    ax.set_ylim(-1.05,1.05)
+
+    for i in range (num_step):
+        step_len=len(all_Inversion_Cir[i])
+        for j in range (step_len):
+            draw_inv(all_Inversion_Cir[i][j][0],'k',ax)
+
+    #plt.text(c1[0].real,c1[0].imag,'C1')
+    #plt.text(c2[0].real,c2[0].imag,'C2')
+    #plt.text(c3[0].real,c3[0].imag,'C3')
+    #plt.text(c4[0].real,c4[0].imag,'C4')
+    plt.show()
+    return None 
+
+
+
+
+def sine(frequency, length, rate):
+    length = int(length * rate)
+    factor = float(frequency) * (math.pi * 2) / rate
+    return np.sin(np.arange(length) * factor)
+
+
+def play_sine(stream, frequency=440, length=1, rate=44100,amp=1):
+    chunks = []
+    chunks.append(sine(frequency, length, rate))
+    chunk = np.concatenate(chunks) * 0.25
+    stream.write(chunk.astype(np.float32).tostring())
+
+
+
+
+def proc_packing():
+    pi=cmath.pi
+    x = (np.random.uniform(low = 0, high = 3.0)/3.0)*pi #theta_1
+    y = (np.random.uniform(low = 3.0, high = 6.0)/3.0)*pi
+
+    cp, all_Inversion_cir = Circle_Packing(x,y)
+    Plot_Packing(all_Inversion_cir,x,y)
+
+    m = len(cp)
+    
+    pyaud = pyaudio.PyAudio()
+    stream = pyaud.open(format=pyaudio.paFloat32,channels=1, rate=44100, output=1)
+    
+    for center in cp:
+    
+        play_sine(stream,center[0].real*1750,2*center[1]*10,44100,abs(center[0].imag))
+    
+    stream.close()
+    pyaud.terminate()
+    return None
+
+
+def rand_packing(): 
+    pi=cmath.pi
+    x = (np.random.uniform(low = 0, high = 3.0)/3.0)*pi #theta_1
+    y = (np.random.uniform(low = 3.0, high = 6.0)/3.0)*pi
+
+    cp, all_Inversion_cir = Circle_Packing(x,y)
+    Plot_Packing(all_Inversion_cir,x,y)
+    rand_list = random.sample(range(len(cp)), len(cp))
+    m = len(rand_list)
+    
+    pyaud = pyaudio.PyAudio()
+    stream = pyaud.open(format=pyaudio.paFloat32,channels=1, rate=44100, output=1)
+
+    
+    for i in rand_list:
+        play_sine(stream,cp[i][0].real*1750,2*cp[i][1]*10,44100,abs(cp[i][0]).imag)
+    stream.close()
+    pyaud.terminate()
+    
+    return None
+
+print('In order for music to play, you must click out of the output depicting the Apollonian Gasket once it appears')
+user_int = str(input("Proc/Rand (1,0): "))
+print('Please select a value for M (determines number of circles in packing) (Recommended value: 100-1250).')
+if user_int == '1': 
+    proc_packing()
+else:
+    rand_packing()
